@@ -691,7 +691,9 @@ impl GetOptionsExt for RequestBuilder {
         use hyper::header::*;
 
         if let Some(range) = options.range {
-            self = self.header(RANGE, range.to_string());
+            // the standard Range header is limited to 32-bit values within Azure, so we use
+            // x-ms-range
+            self = self.header("x-ms-range", range.to_string());
         }
 
         if let Some(tag) = options.if_match {

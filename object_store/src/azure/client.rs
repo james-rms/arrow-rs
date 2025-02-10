@@ -898,6 +898,20 @@ impl GetClient for AzureClient {
             .as_deref()
             .map(|c| c.sensitive_request())
             .unwrap_or_default();
+
+        // https://learn.microsoft.com/en-us/rest/api/storageservices/specifying-the-range-header-for-blob-service-operations
+        // The standard HTTP Range header within Azure is limited to 32-bit values.
+        // To support >4GB objects, we use the `x-ms-range` header instead.
+        let mut options = options;
+        match options.range.take() {
+            None => {}
+            // If the object has zero length, a zero-offset range request will fail with a 416
+            // error, when other stores will accept the request and return the entire (empty) object.
+            Some(GetRange::Offset(0)) => {}
+            Some(range) => {
+                builder = builder.header("x-ms-range", range.to_string());
+            }
+        }
         let response = builder
             .with_get_options(options)
             .with_azure_authorization(&credential, &self.config.account)
